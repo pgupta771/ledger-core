@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.UncategorizedSQLException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.KafkaContainer;
