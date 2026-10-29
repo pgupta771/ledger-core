@@ -2,26 +2,27 @@ package dev.ledger.projector.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ledger.domain.TransferCompletedEvent;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.listener.ConsumerSeekAware;
+import org.springframework.kafka.listener.AbstractConsumerSeekAware;
 import org.springframework.stereotype.Component;
 
 /**
- * Kafka consumer for {@code ledger.transfers.v1} supporting full-topic replay from offset 0.
+ * Kafka consumer for {@code ledger.transfers.v1} supporting thread-safe full-topic replay from offset 0.
  */
 @Component
-public class TransferEventsKafkaConsumer implements ConsumerSeekAware {
+public class TransferEventsKafkaConsumer extends AbstractConsumerSeekAware {
 
     private final BalanceProjectorService projectorService;
     private final ObjectMapper objectMapper;
-    private final AtomicReference<ConsumerSeekCallback> seekCallbackRef = new AtomicReference<>();
     private final Set<TopicPartition> assignedPartitions = ConcurrentHashMap.newKeySet();
+    private final ReentrantLock projectionLock = new ReentrantLock();
 
     public TransferEventsKafkaConsumer(BalanceProjectorService projectorService, ObjectMapper objectMapper) {
         this.projectorService = projectorService;
@@ -29,18 +30,14 @@ public class TransferEventsKafkaConsumer implements ConsumerSeekAware {
     }
 
     @Override
-    public void registerSeekCallback(ConsumerSeekCallback callback) {
-        this.seekCallbackRef.set(callback);
-    }
-
-    @Override
     public void onPartitionsAssigned(Map<TopicPartition, Long> assignments, ConsumerSeekCallback callback) {
-        this.seekCallbackRef.set(callback);
+        super.onPartitionsAssigned(assignments, callback);
         this.assignedPartitions.addAll(assignments.keySet());
     }
 
     @Override
-    public void onPartitionsRevoked(java.util.Collection<TopicPartition> partitions) {
+    public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        super.onPartitionsRevoked(partitions);
         this.assignedPartitions.removeAll(partitions);
     }
 
@@ -50,7 +47,12 @@ public class TransferEventsKafkaConsumer implements ConsumerSeekAware {
             groupId = "${spring.kafka.consumer.group-id:ledger-balance-projector}")
     public void onMessage(ConsumerRecord<String, String> record) throws Exception {
         TransferCompletedEvent event = objectMapper.readValue(record.value(), TransferCompletedEvent.class);
-        projectorService.applyEvent(event);
+        projectionLock.lock();
+        try {
+            projectorService.applyEvent(event);
+        } finally {
+            projectionLock.unlock();
+        }
     }
 
     public Set<TopicPartition> assignedPartitions() {
@@ -58,14 +60,18 @@ public class TransferEventsKafkaConsumer implements ConsumerSeekAware {
     }
 
     /**
-     * Wipes the read model and seeks all assigned partitions back to offset 0 to rebuild deterministically.
+     * Wipes the read model and queues a thread-safe offset-0 seek across all assigned partitions.
      */
     public void replayAllFromBeginning() {
-        ConsumerSeekCallback callback = seekCallbackRef.get();
-        if (callback == null || assignedPartitions.isEmpty()) {
+        if (assignedPartitions.isEmpty()) {
             throw new IllegalStateException("Consumer partitions are not yet assigned for replay");
         }
-        projectorService.wipeProjectionForReplay();
-        callback.seekToBeginning(assignedPartitions);
+        projectionLock.lock();
+        try {
+            projectorService.wipeProjectionForReplay();
+            seekToBeginning();
+        } finally {
+            projectionLock.unlock();
+        }
     }
 }

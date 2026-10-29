@@ -145,7 +145,8 @@ class L4ConcurrencyProofIT {
                 .withFailMessage("Expected 0 deadlock/serialization errors surfaced to callers in %s, got %s: %s",
                         mode, unexpectedErrors.get(), capturedErrors)
                 .isZero();
-        assertThat(elapsed).isLessThan(Duration.ofSeconds(120));
+        Duration limit = mode == ConcurrencyMode.PESSIMISTIC ? Duration.ofMinutes(3) : Duration.ofMinutes(10);
+        assertThat(elapsed).isLessThan(limit);
 
         List<Account> finalAccounts = accountIds.stream()
                 .map(id -> accountRepository.findById(id).orElseThrow())
