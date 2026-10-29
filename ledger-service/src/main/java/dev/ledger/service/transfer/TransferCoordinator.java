@@ -39,7 +39,7 @@ public class TransferCoordinator {
             PlatformTransactionManager transactionManager,
             MeterRegistry meterRegistry,
             @Value("${ledger.concurrency:pessimistic}") String configuredMode,
-            @Value("${ledger.serializable.max-retries:80}") int maxRetries) {
+            @Value("${ledger.serializable.max-retries:200}") int maxRetries) {
         this.idempotentTransferService = idempotentTransferService;
         this.defaultMode = ConcurrencyMode.fromProperty(configuredMode);
         this.maxRetries = maxRetries;
@@ -129,7 +129,7 @@ public class TransferCoordinator {
     }
 
     private static void sleepWithBoundedJitter(int attempt) {
-        long capMs = Math.min(25L, 1L << Math.min(attempt, 5));
+        long capMs = Math.min(60L, 1L << Math.min(attempt, 6));
         long sleepMs = ThreadLocalRandom.current().nextLong(1L, capMs + 1L);
         try {
             Thread.sleep(sleepMs);

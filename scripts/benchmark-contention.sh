@@ -35,7 +35,7 @@ We implement two runtime-selectable concurrency strategies (`ledger.concurrency=
 2. **Serializable (`ISOLATION_SERIALIZABLE` + Bounded Jittered Retry):** Executes without explicit `FOR UPDATE` locks and retries inside a fresh `REQUIRES_NEW` transaction on PostgreSQL `SQLSTATE 40001` (`serialization_failure`) or `40P01` (`deadlock_detected`).
 
 ## Measured Results
-*Environment: {os.environ['CPU_MODEL']} ({os.environ['CORES']} vCPUs, {os.environ['MEM_TOTAL']} RAM, WSL2 Ubuntu, {os.environ['JDK_VER']}), Testcontainers PostgreSQL 16, 50 concurrent threads, 5,000 transfers per scenario.*
+*Environment: {os.environ['CPU_MODEL']} ({os.environ['CORES']} vCPUs, {os.environ['MEM_TOTAL']} RAM, WSL2 Ubuntu, {os.environ['JDK_VER']}), Testcontainers PostgreSQL 16, 32 concurrent threads, 2,000 transfers per scenario.*
 
 | Workload Profile | Strategy | Throughput | Elapsed Time | DB Retries (`40001`/`40P01`) |
 | :--- | :--- | ---: | ---: | ---: |

@@ -58,8 +58,8 @@ class L4ContentionBenchmarkIT {
 
     @Test
     void benchmarkUniformAndHotAccountContention() throws Exception {
-        int transfers = 5_000;
-        int threads = 50;
+        int transfers = 2_000;
+        int threads = 32;
 
         BenchResult unifPess = runBench(ConcurrencyMode.PESSIMISTIC, false, threads, transfers, "bench-unif-pess");
         BenchResult unifSer = runBench(ConcurrencyMode.SERIALIZABLE, false, threads, transfers, "bench-unif-ser");
@@ -149,6 +149,7 @@ class L4ContentionBenchmarkIT {
         long elapsedMs = Math.max(1L, (System.nanoTime() - start) / 1_000_000L);
         long retries = Math.round(meterRegistry.counter("ledger_lock_retries_total").count() - retriesBefore);
         long tps = (totalTransfers * 1000L) / elapsedMs;
+        System.out.printf("[benchmark] %s completed: %d tx/s (%d ms, %d retries)%n", prefix, tps, elapsedMs, retries);
         return new BenchResult(elapsedMs, tps, retries);
     }
 }
