@@ -88,33 +88,48 @@ BEFORE INSERT ON entries
 FOR EACH ROW
 EXECUTE FUNCTION fn_verify_entry_currency();
 
--- 3. Deferred constraint trigger: verify >= 2 entries and SUM(amount_minor) = 0 at COMMIT
-CREATE OR REPLACE FUNCTION fn_verify_transfer_balanced()
-RETURNS TRIGGER
+-- 3. Deferred constraint triggers: verify >= 2 entries and SUM(amount_minor) = 0 at COMMIT
+CREATE OR REPLACE FUNCTION check_transfer_balanced(p_transfer_id UUID)
+RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_transfer_id UUID;
     v_entry_count INT;
     v_sum_minor   BIGINT;
 BEGIN
-    v_transfer_id := CASE WHEN TG_TABLE_NAME = 'transfers' THEN NEW.id ELSE NEW.transfer_id END;
-
     SELECT COUNT(*), COALESCE(SUM(amount_minor), 0)
       INTO v_entry_count, v_sum_minor
       FROM entries
-     WHERE transfer_id = v_transfer_id;
+     WHERE transfer_id = p_transfer_id;
 
     IF v_entry_count < 2 THEN
-        RAISE EXCEPTION 'Transfer % must have at least 2 entries, found %', v_transfer_id, v_entry_count
+        RAISE EXCEPTION 'Transfer % must have at least 2 entries, found %', p_transfer_id, v_entry_count
             USING ERRCODE = '23514';
     END IF;
 
     IF v_sum_minor <> 0 THEN
-        RAISE EXCEPTION 'Transfer % entries do not sum to zero (sum = %)', v_transfer_id, v_sum_minor
+        RAISE EXCEPTION 'Transfer % entries do not sum to zero (sum = %)', p_transfer_id, v_sum_minor
             USING ERRCODE = '23514';
     END IF;
+END;
+$$;
 
+CREATE OR REPLACE FUNCTION fn_verify_entries_balanced()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM check_transfer_balanced(NEW.transfer_id);
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_verify_transfer_has_entries()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM check_transfer_balanced(NEW.id);
     RETURN NULL;
 END;
 $$;
@@ -124,14 +139,14 @@ CREATE CONSTRAINT TRIGGER trg_entries_balanced_deferred
 AFTER INSERT ON entries
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION fn_verify_transfer_balanced();
+EXECUTE FUNCTION fn_verify_entries_balanced();
 
 DROP TRIGGER IF EXISTS trg_transfers_has_entries_deferred ON transfers;
 CREATE CONSTRAINT TRIGGER trg_transfers_has_entries_deferred
 AFTER INSERT ON transfers
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION fn_verify_transfer_balanced();
+EXECUTE FUNCTION fn_verify_transfer_has_entries();
 
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     client_id     TEXT        NOT NULL,

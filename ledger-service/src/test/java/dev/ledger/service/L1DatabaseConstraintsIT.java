@@ -77,7 +77,7 @@ class L1DatabaseConstraintsIT {
             jdbcTemplate.update(
                     "INSERT INTO entries (transfer_id, account_id, amount_minor, currency) VALUES (?, ?, 900, 'EUR')",
                     transferId, a2);
-        })).satisfies(ex -> assertThat(ex.getMessage()).contains("do not sum to zero"));
+        })).hasStackTraceContaining("do not sum to zero");
     }
 
     @Test
@@ -124,7 +124,7 @@ class L1DatabaseConstraintsIT {
             jdbcTemplate.update(
                     "INSERT INTO entries (transfer_id, account_id, amount_minor, currency) VALUES (?, ?, 500, 'EUR')",
                     badTransferId, usdAcc);
-        })).satisfies(ex -> assertThat(ex.getMessage()).contains("currency"));
+        })).hasStackTraceContaining("currency");
     }
 
     private UUID insertAccount(String currency, String type, boolean allowNegative, long balanceMinor) {
