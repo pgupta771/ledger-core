@@ -23,4 +23,4 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - name: Build and Verify (Unit + Property + Testcontainers IT)
-        run: mvn -B clean verify -Dapi.version=1.44 -Dit.test='!L4ConcurrencyProofIT'
+        run: mvn -B clean verify -Dapi.version=1.44
