@@ -61,13 +61,15 @@ class L4ConcurrencyProofIT {
 
     @Test
     void hundredThreadsTenAccountsTwentyThousandTransfersConserveMoneyUnderBothStrategies() throws Exception {
-        runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, 100, 10, 20_000, "l4-20k-pess");
-        runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, 100, 10, 20_000, "l4-20k-ser");
+        int transfers = Integer.getInteger("ledger.concurrency.transfers", 20_000);
+        runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, 100, 10, transfers, "l4-20k-pess");
+        runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, 100, 10, transfers, "l4-20k-ser");
     }
 
     @Test
     void tenConsecutiveRoundsHaveZeroInvariantViolationsAcrossBothStrategies() throws Exception {
-        for (int round = 1; round <= 10; round++) {
+        int rounds = Integer.getInteger("ledger.concurrency.rounds", 10);
+        for (int round = 1; round <= rounds; round++) {
             runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, 100, 10, 500, "l4-r" + round + "-pess");
             runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, 100, 10, 500, "l4-r" + round + "-ser");
         }
