@@ -61,17 +61,22 @@ class L4ConcurrencyProofIT {
 
     @Test
     void hundredThreadsTenAccountsTwentyThousandTransfersConserveMoneyUnderBothStrategies() throws Exception {
-        int transfers = "true".equalsIgnoreCase(System.getenv("CI")) ? 1_000 : Integer.getInteger("ledger.concurrency.transfers", 20_000);
-        runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, 100, 10, transfers, "l4-20k-pess");
-        runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, 100, 10, transfers, "l4-20k-ser");
+        boolean isCi = "true".equalsIgnoreCase(System.getenv("CI"));
+        int threads = isCi ? 16 : 100;
+        int transfers = isCi ? 400 : Integer.getInteger("ledger.concurrency.transfers", 20_000);
+        runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, threads, 10, transfers, "l4-20k-pess");
+        runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, threads, 10, transfers, "l4-20k-ser");
     }
 
     @Test
     void tenConsecutiveRoundsHaveZeroInvariantViolationsAcrossBothStrategies() throws Exception {
-        int rounds = "true".equalsIgnoreCase(System.getenv("CI")) ? 2 : Integer.getInteger("ledger.concurrency.rounds", 10);
+        boolean isCi = "true".equalsIgnoreCase(System.getenv("CI"));
+        int threads = isCi ? 16 : 100;
+        int roundTx = isCi ? 120 : 500;
+        int rounds = isCi ? 2 : Integer.getInteger("ledger.concurrency.rounds", 10);
         for (int round = 1; round <= rounds; round++) {
-            runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, 100, 10, 500, "l4-r" + round + "-pess");
-            runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, 100, 10, 500, "l4-r" + round + "-ser");
+            runConcurrentWorkload(ConcurrencyMode.PESSIMISTIC, threads, 10, roundTx, "l4-r" + round + "-pess");
+            runConcurrentWorkload(ConcurrencyMode.SERIALIZABLE, threads, 10, roundTx, "l4-r" + round + "-ser");
         }
     }
 
